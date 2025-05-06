@@ -1,42 +1,174 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* frontend/src/App.css */
+body {
+  font-family: sans-serif;
+  margin: 0;
+  background-color: #f4f7f6;
+  color: #333;
+  line-height: 1.6;
+}
+
+.App {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #fff;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.App-header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.App-header h1 {
+  color: #2c3e50;
+  margin: 0;
+}
+
+.input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #555;
+}
+
+.form-group textarea,
+.form-group select {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1em;
+  background-color: #fff;
+  color: #333;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+button[type="submit"] {
+  padding: 12px 20px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button[type="submit"]:hover {
+  background-color: #2980b9;
+}
+
+button[type="submit"]:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #e74c3c;
+  background-color: #fdd;
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #e74c3c;
+  margin-bottom: 20px;
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.results-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.results-section h2 {
+  color: #2c3e50;
+  margin-bottom: 15px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.script-display {
+  background-color: #ecf0f1;
+  padding: 15px;
+  border-radius: 4px;
+  white-space: pre-wrap; /* Allows text to wrap */
+  word-wrap: break-word; /* Breaks long words */
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
 }
 
-.card {
-  padding: 2em;
+.audio-player {
+  width: 100%;
+  margin-top: 10px;
 }
 
-.read-the-docs {
-  color: #888;
+footer {
+  text-align: center;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+  font-size: 0.9em;
+  color: #7f8c8d;
+}
+
+/* frontend/src/App.css */
+/* ... (existing styles) ... */
+
+.action-buttons {
+  display: flex;
+  gap: 15px; /* Space between buttons */
+  margin-top: 10px; /* Space above buttons */
+}
+
+.action-buttons button {
+  flex-grow: 1; /* Make buttons share space equally */
+  padding: 12px 20px;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1.0em; /* Slightly smaller than a single main button */
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.button-script {
+  background-color: #27ae60; /* Green for script */
+}
+.button-script:hover {
+  background-color: #229954;
+}
+
+.button-audio {
+  background-color: #e67e22; /* Orange for audio */
+}
+.button-audio:hover {
+  background-color: #d35400;
+}
+
+.action-buttons button:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.loading-message {
+  text-align: center;
+  padding: 15px;
+  color: #2980b9;
+  font-style: italic;
 }
