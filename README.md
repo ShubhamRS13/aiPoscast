@@ -1,14 +1,14 @@
-🎙️ AI Podcast Generator: Project Documentation 🎙️
+# 🎙️ AI Podcast Generator: Project Documentation 🎙️
 
 Version: 1.0.0
 Date: 07/05/2025
 Author(s): Shubham Shinde
 
-1. Project Overview
+## 1. Project Overview
 
 The AI Podcast Generator is a full-stack web application that empowers users to create short, engaging podcasts from a simple topic input. It leverages cutting-edge AI for script generation (Google Gemini) and multi-voice audio synthesis (ElevenLabs). The application features a two-step process: first generating a conversational script between a Host and a Guest, and then rendering that script into a combined audio file with distinct voices for each speaker.
 
-Core Features:
+### Core Features:
 
 Topic-to-Script Generation: Users input a topic.
 
@@ -30,7 +30,7 @@ User-Friendly Interface: Built with React and Vite for a responsive experience.
 
 Robust Backend: Python FastAPI backend orchestrates AI service calls and audio processing.
 
-2. Architecture
+## 2. Architecture
 
 The application follows a client-server architecture:
 
@@ -48,9 +48,9 @@ Concatenation of individual audio segments into a single podcast file using pydu
 
 Serving API endpoints for the frontend.
 
-Technology Stack:
+### Technology Stack:
 
-Frontend:
+### Frontend:
 
 Framework/Library: React (with JavaScript + SWC via Vite)
 
@@ -60,7 +60,7 @@ HTTP Client: fetch API (built-in)
 
 Styling: Plain CSS
 
-Backend:
+### Backend:
 
 Framework: FastAPI (Python)
 
@@ -74,9 +74,10 @@ Environment Variables: python-dotenv
 
 ASGI Server (for development): Uvicorn
 
-Version Control: Git & GitHub
+### Version Control: Git & GitHub
 
-Diagrammatic Flow (High-Level):
+## Diagrammatic Flow (High-Level): 
+### (for proper visibility see it in vs code or in code format)
 
 User (Browser - React Frontend)
     |
@@ -106,7 +107,8 @@ Frontend
     |
     3. Plays Audio
 
-3. Project Structure
+## 3. Project Structure
+### (for proper visibility see it in vs code or in code format)
 ai-podcast-generator/
 ├── backend/
 │   ├── .env                    # Stores API keys (GITIGNORED)
@@ -136,7 +138,8 @@ content_copy
 download
 Use code with caution.
 IGNORE_WHEN_COPYING_END
-4. Setup and Installation
+
+## 4. Setup and Installation
 
 Prerequisites:
 
@@ -148,7 +151,7 @@ Git
 
 ffmpeg installed and accessible in system PATH (for pydub audio processing).
 
-A. API Keys:
+### A. API Keys:
 
 You will need API keys from the following services:
 
@@ -164,7 +167,7 @@ Go to https://elevenlabs.io/
 
 Obtain your API key from your profile.
 
-B. Backend Setup:
+### B. Backend Setup:
 
 Clone the repository (if applicable):
 
@@ -226,13 +229,13 @@ Use code with caution.
 Python
 IGNORE_WHEN_COPYING_END
 
-C. Frontend Setup:
+## C. Frontend Setup:
 
 Navigate to the frontend directory:
 
 cd ../frontend  # If you are in the backend directory
-# OR
-# cd ai-podcast-generator/frontend # From project root
+OR
+cd ai-podcast-generator/frontend # From project root
 IGNORE_WHEN_COPYING_START
 content_copy
 download
@@ -243,15 +246,16 @@ IGNORE_WHEN_COPYING_END
 Install Node.js dependencies:
 
 npm install
-# OR
-# yarn install
+OR
+yarn install
 IGNORE_WHEN_COPYING_START
 content_copy
 download
 Use code with caution.
 Bash
 IGNORE_WHEN_COPYING_END
-5. Running the Application (Development)
+
+## 5. Running the Application (Development)
 
 Start the Backend Server:
 
@@ -278,8 +282,8 @@ Open a new terminal, navigate to the frontend/ directory.
 Run:
 
 npm run dev
-# OR
-# yarn dev
+OR
+yarn dev
 IGNORE_WHEN_COPYING_START
 content_copy
 download
@@ -289,7 +293,7 @@ IGNORE_WHEN_COPYING_END
 
 The frontend application will typically be available at http://localhost:5173 (or another port shown in the terminal). Open this URL in your browser.
 
-6. API Endpoints (Backend)
+## 6. API Endpoints (Backend)
 
 POST /api/generate-script
 
@@ -359,9 +363,9 @@ Response Body (JSON): {"status": "Backend is running!"}
 CORS Configuration:
 The backend uses FastAPI's CORSMiddleware to allow requests from the frontend development server (http://localhost:5173). This needs to be updated with the deployed frontend URL for production.
 
-7. Core Logic Walkthrough
+## 7. Core Logic Walkthrough
 
-A. Script Generation & Parsing (_generate_script_logic & _parse_script_into_segments in backend/main.py):
+### A. Script Generation & Parsing (_generate_script_logic & _parse_script_into_segments in backend/main.py):
 
 A detailed prompt is constructed, instructing Google Gemini to create a conversational script (Host/Guest roles), adhere to a specific structure (intro, mid-conversation, outro), length, and formatting (speaker labels on new lines).
 
@@ -373,7 +377,7 @@ This parsing function iterates through the script lines, using regular expressio
 
 It returns both the original raw script (for display) and the list of structured segments [{speaker, text}, ...].
 
-B. Multi-Voice Audio Generation & Concatenation (/api/generate-podcast-audio in backend/main.py):
+### B. Multi-Voice Audio Generation & Concatenation (/api/generate-podcast-audio in backend/main.py):
 
 The endpoint receives the list of segments.
 
@@ -393,7 +397,7 @@ After processing all segments, the combined_audio object (now containing the ful
 
 This buffer is then streamed back to the client as the HTTP response.
 
-8. Frontend Interaction Flow (frontend/src/App.jsx):
+## 8. Frontend Interaction Flow (frontend/src/App.jsx):
 
 Topic Input: User types a topic.
 
@@ -423,31 +427,31 @@ State Management: React's useState hook manages all dynamic data (inputs, loadin
 
 Cleanup: useEffect hook with URL.revokeObjectURL() is used to release memory allocated for audio blob URLs when they are no longer needed.
 
-9. Deployment Considerations
+## 9. Deployment Considerations
 
-A. Backend (FastAPI):
+### A. Backend (FastAPI):
 
 Platform Choices: Render, Railway, Fly.io, Heroku (with limitations), Google Cloud Run, AWS Lambda (Serverless).
 
 Dockerfile: Create a Dockerfile to containerize the backend for easier deployment.
 
-# backend/Dockerfile (Example)
+### backend/Dockerfile (Example)
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install ffmpeg (essential for pydub)
+### Install ffmpeg (essential for pydub)
 RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt requirements.txt
+### COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Expose port (default Uvicorn port)
+### Expose port (default Uvicorn port)
 EXPOSE 8000
 
-# Command to run the application using Gunicorn with Uvicorn workers
+### Command to run the application using Gunicorn with Uvicorn workers
 CMD ["gunicorn", "-w", "2", "-k", "uvicorn.workers.UvicornWorker", "main:app", "--bind", "0.0.0.0:8000"]
 IGNORE_WHEN_COPYING_START
 content_copy
@@ -462,7 +466,7 @@ Environment Variables: API keys MUST be set as environment variables on the host
 
 CORS: Update allow_origins in CORSMiddleware to include your deployed frontend's URL.
 
-B. Frontend (React/Vite):
+### B. Frontend (React/Vite):
 
 Build for Production:
 
@@ -481,7 +485,7 @@ Platform Choices (Static Hosting): Netlify, Vercel, GitHub Pages, AWS S3 + Cloud
 
 API URL: Ensure the frontend code (in App.jsx fetch calls) points to the deployed backend API URL, not http://localhost:8000. This can be managed with an environment variable (e.g., VITE_API_BASE_URL in a .env file for Vite).
 
-10. Future Enhancements & Known Limitations
+## 10. Future Enhancements & Known Limitations
 
 Enhancements:
 
@@ -511,9 +515,9 @@ ffmpeg dependency can sometimes be tricky for users to set up locally if not pac
 
 Audio generation for very long scripts can be slow and resource-intensive.
 
-11. Troubleshooting Tips
+## 11. Troubleshooting Tips
 
-Backend:
+### Backend:
 
 Check Uvicorn/Gunicorn logs for errors.
 
@@ -523,7 +527,7 @@ Ensure ffmpeg is installed and in PATH if pydub errors occur.
 
 Test individual API endpoints with Postman/Insomnia.
 
-Frontend:
+### Frontend:
 
 Use browser Developer Tools (Console, Network tab).
 
