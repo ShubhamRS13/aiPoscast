@@ -1,0 +1,10 @@
+# Root .gitignore
+.DS_Store
+.vscode/
+*.env
+*.env.*
+!*.env.example # If you want to commit an example env file
+
+# OS generated files
+ehthumbs.db
+Thumbs.db

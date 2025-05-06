@@ -1,0 +1,16 @@
+Keep in  mind At time of creating the frontend I have selected follwoing options 
+◇  Select a framework:
+│  React
+│
+◇  Select a variant:
+│  JavaScript + SWC
+
+
+to activate frontend
+\frontend> npm run dev
+
+to activate backend python venv
+\backend> venv/Scripts/activate  
+
+to test backend app
+\backend> uvicorn main:app --reload 
