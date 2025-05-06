@@ -1,10 +1,14 @@
 # backend/main.py
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse # For streaming audio
 from dotenv import load_dotenv
 import os
 from pydantic import BaseModel
 import google.generativeai as genai
 
+from elevenlabs import Voice, VoiceSettings 
+from elevenlabs.client import ElevenLabs 
+# import io # For handling byte streams
 
 # load env variables
 load_dotenv()
@@ -13,12 +17,6 @@ load_dotenv()
 GOOGLE_GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 # DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
-
-# debug - check for keys are loaded 
-if not GOOGLE_GEMINI_API_KEY:
-    print("CRITICAL: GOOGLE_GEMINI_API_KEY not found. The script generation will fail.")
-if not ELEVENLABS_API_KEY:
-    print("Warning: ELEVENLABS_API_KEY not found in .env file.")
 
 
 # config Google Gemini and create the model
@@ -29,20 +27,47 @@ else:
     print("CRITICAL: GOOGLE_GEMINI_API_KEY not found. Script generation will fail.")
     gemini_model = None 
     
+# Configure ElevenLabs Client
+elevenlabs_client = None
+if ELEVENLABS_API_KEY:
+    try:
+        elevenlabs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+        print("ElevenLabs client initialized.")
+    except Exception as e:
+        print(f"Error initializing ElevenLabs client: {e}")
+else:
+    print("CRITICAL: ELEVENLABS_API_KEY not found. Audio generation will fail.")
+
+    
 app = FastAPI()
 
 # Pydantic model for request body
 class ScriptRequest(BaseModel):
     topic: str
-    # You can add more parameters later, like 'tone', 'length', etc.
 
-# Pydantic model for response (good practice)
+# Pydantic model for response
 class ScriptResponse(BaseModel):
     topic_received: str
     script: str
-    # You can add more fields like 'estimated_duration', etc.
+    
+    
+class AudioRequest(BaseModel):
+    script_text: str
+    voice_id: str | None = "Rachel" # Default voice, or allow user to specify. Find IDs via API or ElevenLabs website.
+    # You can add more voice settings here later from VoiceSettings
 
 
+class VoiceInfo(BaseModel):
+    voice_id: str
+    name: str
+    category: str | None
+    # Add other relevant fields from ElevenLabs Voice object
+
+class VoicesListResponse(BaseModel):
+    voices: list[VoiceInfo]
+    
+
+# --- End Points ---
 @app.get("/")
 async def root():
     return {"message": "Welcome to the AI Podcast Generator Backend! - By Shubham Shinde"}
@@ -104,3 +129,79 @@ async def generate_script_endpoint(request: ScriptRequest):
         if hasattr(e, 'message'): # Some Google API errors have a 'message' attribute
             error_detail = e.message
         raise HTTPException(status_code=500, detail=f"An error occurred during script generation with Gemini: {error_detail}")
+
+
+@app.post("/api/generate-audio")
+async def generate_audio_endpoint(request: AudioRequest):
+    """
+    Generates audio from script text using ElevenLabs.
+    Streams the audio back as an MP3.
+    """
+    print(f"Received script for audio generation. Voice ID: {request.voice_id or 'default'}")
+    if not ELEVENLABS_API_KEY:
+        raise HTTPException(status_code=500, detail="ElevenLabs API key not configured.")
+    if not request.script_text or request.script_text.strip() == "":
+        raise HTTPException(status_code=400, detail="Script text cannot be empty.")
+
+    try:
+        voice_setting = VoiceSettings(
+            stability=0.71, # Lower is more expressive, higher is more consistent
+            similarity_boost=0.5, # How much to resemble the base voice
+            style=0.0, # For style-exaggeration if the voice supports it
+            use_speaker_boost=True
+        )
+
+        selected_voice_id = request.voice_id if request.voice_id else "Rachel" # Default to Rachel if none provided
+        
+        if selected_voice_id == "Rachel":
+            selected_voice_id = "21m00Tcm4TlvDq8ikWAM"
+        
+        print(f"Generating audio with ElevenLabs using voice: {selected_voice_id}...")
+        
+        audio_stream_iterator = elevenlabs_client.text_to_speech.convert(
+            text=request.script_text,
+            voice_id=selected_voice_id, 
+            output_format="mp3_44100_128",
+            model_id="eleven_multilingual_v2",
+            voice_settings = voice_setting # Or other models
+            # VoiceSettings can be passed directly to some methods or set on a Voice object
+            # voice_settings=VoiceSettings(stability=0.71, similarity_boost=0.5) # Example
+        )
+        
+        print("Streaming audio response...")
+        return StreamingResponse(audio_stream_iterator, media_type="audio/mpeg")
+
+        
+    except Exception as e:
+        print(f"Error during ElevenLabs audio generation: {e}")
+        # Check if the error is an APIError from elevenlabs for more specific messages
+        if hasattr(e, 'message') and "Unauthenticated" in e.message:
+             raise HTTPException(status_code=401, detail=f"ElevenLabs Authentication Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate audio: {str(e)}")
+    
+
+@app.get("/api/list-voices", response_model=VoicesListResponse)
+async def list_voices_endpoint():
+    """
+    Lists available voices from ElevenLabs.
+    """
+    if not ELEVENLABS_API_KEY:
+        raise HTTPException(status_code=500, detail="ElevenLabs API key not configured.")
+    try:
+        print("Fetching voices from ElevenLabs...")
+        eleven_voices_list = elevenlabs_client.voices.get_all().voices # Gets all voices (premade, cloned, etc.)
+        
+        formatted_voices = []
+        for v in eleven_voices_list:
+            # Access attributes directly as they are usually Pydantic models in newer SDKs
+            formatted_voices.append(VoiceInfo(
+                voice_id=v.voice_id, 
+                name=v.name, 
+                category=v.category if hasattr(v, 'category') else None
+            ))
+            
+        print(f"Found {len(formatted_voices)} voices.")
+        return VoicesListResponse(voices=formatted_voices)
+    except Exception as e:
+        print(f"Error fetching ElevenLabs voices: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch voices: {str(e)}")
