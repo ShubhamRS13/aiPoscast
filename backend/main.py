@@ -8,7 +8,9 @@ import google.generativeai as genai
 
 from elevenlabs import Voice, VoiceSettings 
 from elevenlabs.client import ElevenLabs 
-# import io # For handling byte streams
+
+import json # For putting script into header
+from urllib.parse import quote # For safely encoding script text for header
 
 # load env variables
 load_dotenv()
@@ -65,7 +67,10 @@ class VoiceInfo(BaseModel):
 
 class VoicesListResponse(BaseModel):
     voices: list[VoiceInfo]
-    
+
+class CreatePodcastRequest(BaseModel):
+    topic: str
+    voice_id: str | None = "21m00Tcm4TlvDq8ikWAM" # Default to Rachel's ID, or your preferred default
 
 # --- End Points ---
 @app.get("/")
@@ -205,3 +210,125 @@ async def list_voices_endpoint():
     except Exception as e:
         print(f"Error fetching ElevenLabs voices: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch voices: {str(e)}")
+    
+    
+async def _generate_script_logic(topic: str) -> str:
+    if not topic or topic.strip() == "":
+        # This would ideally be caught by Pydantic validation if part of a request model
+        raise ValueError("Topic cannot be empty for script generation.")
+    if not gemini_model:
+        raise RuntimeError("Gemini model not initialized.") # Use RuntimeError for internal server issues
+    
+    try:
+        prompt_for_gemini = f"""
+        You are a creative and engaging podcast scriptwriter.
+        Your task is to generate a concise podcast script based on the topic: "{topic}".
+        The script should include:
+        1. A catchy introduction with a hook to grab the listener's attention.
+        2. One or two main segments exploring different aspects of the topic. Keep it focused and easy to follow.
+        3. A brief concluding summary and perhaps a thought-provoking question or a call to action.
+        4. Assume a single host for the podcast. Use "Host:" to denote speaker lines.
+        The tone should be informative yet engaging and accessible to a general audience.
+        The desired length for the spoken podcast is approximately 2-3 minutes. Aim for a script of around 300-450 words.
+        Please provide ONLY the script content itself, starting directly with something like "Host: Welcome to...". Do not include any pre-amble or any instructions like (take pasue of or with high voice shout).
+        Topic to write about: {topic}
+        """
+        
+        print(f"Internal: Sending script request to Google Gemini for topic: {topic}")
+        response = gemini_model.generate_content(prompt_for_gemini)
+        
+        if not response.text:
+            print(f"Internal: Gemini response was empty. Prompt feedback: {response.prompt_feedback}")
+            raise RuntimeError("Failed to generate script from Gemini (empty response).")
+        
+        generated_script = response.text.strip()
+        print("Internal: Received script from Google Gemini.")
+        return generated_script
+    
+    except Exception as e:
+        print(f"Internal: An unexpected error occurred during script generation: {e}")
+        # Re-raise as a more generic internal error or a specific custom exception
+        raise RuntimeError(f"Internal Gemini Error: {str(e)}")
+    
+
+# --- Helper function for audio generation (to avoid code duplication) ---
+async def _generate_audio_logic(script_text: str, voice_id: str, model_id: str = "eleven_multilingual_v2"):
+    if not elevenlabs_client:
+        raise RuntimeError("ElevenLabs client not initialized.")
+    if not script_text or script_text.strip() == "":
+        raise ValueError("Script text cannot be empty for audio generation.")
+    
+    try:
+        current_voice_settings = VoiceSettings(
+            stability=0.71,
+            similarity_boost=0.5,
+            style=0.0,
+            use_speaker_boost=True,
+        )
+        print(f"Internal: Generating audio with ElevenLabs using voice_id: {voice_id}...")
+        
+        audio_iterator = elevenlabs_client.text_to_speech.convert(
+            voice_id=voice_id,
+            output_format="mp3_44100_128",
+            text=script_text,
+            model_id=model_id,
+            voice_settings=current_voice_settings,
+        )
+        print("Internal: Audio stream iterator obtained from ElevenLabs.")
+        
+        return audio_iterator
+    
+    except Exception as e:
+        print(f"Internal: Error during ElevenLabs audio generation: {str(e)}")
+        # Re-raise or handle
+        raise RuntimeError(f"Internal ElevenLabs Error: {str(e)}")
+    
+    
+@app.post("/api/create-podcast")
+async def create_podcast_endpoint(request: CreatePodcastRequest):
+    """
+    Generates a podcast script for the topic and streams the audio.
+    The script text is included in the 'X-Podcast-Script' response header.
+    """
+    print(f"Received request to create podcast. Topic: {request.topic}, Voice ID: {request.voice_id}")
+
+    try:
+        # Step 1: Generate Script
+        generated_script = await _generate_script_logic(request.topic)
+
+        # Step 2: Generate Audio from the script
+        target_voice_id = request.voice_id if request.voice_id else "21m00Tcm4TlvDq8ikWAM" 
+
+        audio_iterator = await _generate_audio_logic(generated_script, target_voice_id)
+        
+        # Prepare the script for the header.
+        # Headers should be ASCII. For complex text, URL encoding or Base64 is safer.
+        # Let's use URL encoding for simplicity here. Frontend will need to decode.
+        # JSON encode it first so it's a single string, then URL encode.
+        script_json_string = json.dumps({"script": generated_script})
+        encoded_script = quote(script_json_string)
+
+        # Custom headers need to be strings.        
+        headers = {
+            "X-Podcast-Script": encoded_script,
+            # Advise the client on how to handle the file
+            "Content-Disposition": f"attachment; filename=\"podcast_{request.topic[:20].replace(' ','_')}.mp3\""
+        }
+        
+        print("Streaming podcast audio with script in header...")
+        return StreamingResponse(audio_iterator, media_type="audio/mpeg", headers=headers)
+
+    except ValueError as ve: # Catch specific input validation errors from helpers
+        raise HTTPException(status_code=400, detail=str(ve))
+    except RuntimeError as re: # Catch specific internal processing errors from helpers
+        print(f"Runtime error during podcast creation: {re}")
+        # Determine if it's an upstream (AI service) issue or internal
+        if "Gemini" in str(re):
+            raise HTTPException(status_code=502, detail=f"Error with script generation service: {str(re)}")
+        elif "ElevenLabs" in str(re):
+            raise HTTPException(status_code=502, detail=f"Error with audio generation service: {str(re)}")
+        else:
+            raise HTTPException(status_code=500, detail=f"Internal server error: {str(re)}")
+    except Exception as e:
+        print(f"Unexpected error during podcast creation: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
