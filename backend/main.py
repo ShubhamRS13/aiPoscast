@@ -3,24 +3,32 @@ from fastapi import FastAPI, HTTPException
 from dotenv import load_dotenv
 import os
 from pydantic import BaseModel
+import google.generativeai as genai
+
 
 # load env variables
 load_dotenv()
 
 # get api key
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GOOGLE_GEMINI_API_KEY = os.getenv("GOOGLE_GEMINI_API_KEY")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
+# DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 
 # debug - check for keys are loaded 
-if not OPENAI_API_KEY:
-    print("Warning: OPENAI_API_KEY not found in .env file.")
+if not GOOGLE_GEMINI_API_KEY:
+    print("CRITICAL: GOOGLE_GEMINI_API_KEY not found. The script generation will fail.")
 if not ELEVENLABS_API_KEY:
     print("Warning: ELEVENLABS_API_KEY not found in .env file.")
-if not DEEPGRAM_API_KEY:
-    print("Warning: DEEPGRAM_API_KEY not found in .env file.")
 
 
+# config Google Gemini and create the model
+if GOOGLE_GEMINI_API_KEY:
+    genai.configure(api_key=GOOGLE_GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+else:
+    print("CRITICAL: GOOGLE_GEMINI_API_KEY not found. Script generation will fail.")
+    gemini_model = None 
+    
 app = FastAPI()
 
 # Pydantic model for request body
@@ -45,46 +53,54 @@ async def health_check():
 
 @app.post("/api/generate-script", response_model=ScriptResponse) # Use POST for sending data
 async def generate_script_endpoint(request: ScriptRequest):
-    """
-    Generates a podcast script based on the provided topic.
-    (Currently returns a dummy script)
-    """
-    print(f"Received topic: {request.topic}")
-
-    # --- DUMMY SCRIPT GENERATION ---
-    # In the next step, we'll replace this with an actual OpenAI call
+    print(f"Received topic for script generation: {request.topic}")
+    
     if not request.topic or request.topic.strip() == "":
         raise HTTPException(status_code=400, detail="Topic cannot be empty.")
+    
+    if not gemini_model:
+        raise HTTPException(status_code=500, detail="OpenAI client not initialized. Check API key.")
 
-    dummy_script = f"""
-    --- DUMMY PODCAST SCRIPT ---
+    try:
+        # Prompt for the chatGPT
+        prompt_instructions = f"""
+        You are a creative, engaging and self-motivated podcast scriptwriter.
+        Your task is to generate a concise podcast script based on the topic: "{request.topic}".
 
-    **Episode Title:** Exploring {request.topic.title()}
+        The script should include:
+        1. A catchy introduction with a hook to grab the listener's attention (like youtuber Beerbiseps)
+        2. One or two main segments exploring different aspects of the topic. Keep it focused and easy to follow.
+        3. A brief concluding summary and perhaps a thought-provoking question or a call to action (e.g., "What are your thoughts? Let us know!").
+        4. Clear speaker labels if you imagine multiple speakers (e.g., Host:, Guest:), but for now, assume a single host and single guest.
 
-    **Intro Music Fades In and Out**
+        The tone should be informative yet engaging and accessible to a general audience.
+        The desired length for the spoken podcast is approximately 2-3 minutes. Aim for around 300-450 words for the script.
+        Do not include any pre-amble or post-amble like "Here's the script:". Just provide the script content itself.
+        Start directly with the script content (e.g., "Host: Welcome to...").
+        
+        Topic to write about: {request.topic}
+        """
+        
+        print("Sending request to Google Gemini...")
+        
+        response = gemini_model.generate_content(prompt_instructions)
+        
+        if not response.text:
+            print(f"Gemini response was empty. Prompt feedback: {response.prompt_feedback}")
+            raise HTTPException(status_code=500, detail="Failed to generate script. The response from Gemini was empty or blocked. Check safety settings or prompt.")
+        
+        generated_script = response.text.strip()
+        print("Received script from Google Gemini.")
+        
+        return ScriptResponse(
+            topic_received=request.topic,
+            script=generated_script
+            # model_used=chat_completion.model # If you want to return model info
+        )
 
-    **Host:** Welcome, everyone, to 'AI Insights'! Today, we're diving deep into the fascinating world of {request.topic}.
-    It's a subject that's been on many minds, and we're here to shed some light.
-
-    **Segment 1: What is {request.topic.title()}?**
-    **Host:** So, to start, what exactly do we mean when we talk about {request.topic}?
-    Well, essentially, it's all about [brief explanation related to the topic].
-    This has huge implications for [mention an area].
-
-    **Segment 2: The Impact and Future**
-    **Host:** Looking ahead, the impact of {request.topic} could be transformative.
-    Imagine a world where [future scenario related to topic].
-    Of course, there are challenges too, such as [mention a challenge].
-
-    **Outro:**
-    **Host:** And that's all the time we have for today on {request.topic}.
-    Join us next time as we explore another exciting AI development. Thanks for tuning in!
-
-    **Outro Music Fades In**
-    --- END OF DUMMY SCRIPT ---
-    """
-
-    return ScriptResponse(
-        topic_received=request.topic,
-        script=dummy_script
-    )
+    except Exception as e: # General exception for Gemini or other issues
+        print(f"An unexpected error occurred: {e}")
+        error_detail = str(e)
+        if hasattr(e, 'message'): # Some Google API errors have a 'message' attribute
+            error_detail = e.message
+        raise HTTPException(status_code=500, detail=f"An error occurred during script generation with Gemini: {error_detail}")
