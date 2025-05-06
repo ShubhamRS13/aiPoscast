@@ -534,5 +534,3 @@ Verify API request/response payloads in the Network tab.
 AI Services:
 
 Check dashboards for Gemini and ElevenLabs for API errors, usage, and quota status.
-
-This document should provide a comprehensive overview. You can expand any section with more specific details as needed. It's a great asset for yourself and anyone else who might work on or use the project!
