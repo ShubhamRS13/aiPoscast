@@ -184,8 +184,8 @@ Create and activate a Python virtual environment:
 
 python -m venv venv
 source venv/bin/activate  # macOS/Linux
-# OR
-# venv\Scripts\activate   # Windows
+OR
+venv\Scripts\activate   # Windows
 IGNORE_WHEN_COPYING_START
 content_copy
 download
