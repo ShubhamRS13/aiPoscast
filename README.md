@@ -509,6 +509,8 @@ Reliability of LLM script formatting (parser might need adjustments if Gemini ou
 
 Fixed voices (current implementation).
 
+robotic voice conversations
+
 ElevenLabs/Gemini API rate limits and costs.
 
 ffmpeg dependency can sometimes be tricky for users to set up locally if not packaged with a deployment.

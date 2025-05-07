@@ -258,47 +258,15 @@ async def generate_podcast_audio_endpoint(request: PodcastAudioRequest):
         raise HTTPException(status_code=500, detail=f"Failed to generate podcast audio: {error_message}")
 
 
-
- 
-
-@app.get("/api/list-voices", response_model=VoicesListResponse)
-async def list_voices_endpoint():
-    """
-    Lists available voices from ElevenLabs.
-    """
-    if not ELEVENLABS_API_KEY:
-        raise HTTPException(status_code=500, detail="ElevenLabs API key not configured.")
-    try:
-        print("Fetching voices from ElevenLabs...")
-        eleven_voices_list = elevenlabs_client.voices.get_all().voices # Gets all voices (premade, cloned, etc.)
-        
-        formatted_voices = []
-        for v in eleven_voices_list:
-            # Access attributes directly as they are usually Pydantic models in newer SDKs
-            formatted_voices.append(VoiceInfo(
-                voice_id=v.voice_id, 
-                name=v.name, 
-                category=v.category if hasattr(v, 'category') else None
-            ))
-            
-        print(f"Found {len(formatted_voices)} voices.")
-        return VoicesListResponse(voices=formatted_voices)
-    except Exception as e:
-        print(f"Error fetching ElevenLabs voices: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch voices: {str(e)}")
-    
 def _parse_script_into_segments(raw_script_text: str) -> list[dict[str, str]]:
     segments = []
     # Regex to find "Speaker:" followed by text.
     # It captures the speaker (Host or Guest) and the subsequent text until the next speaker label or end of string.
-    # re.DOTALL (s) makes '.' match newlines as well.
-    # re.MULTILINE (m) makes ^ and $ match start/end of lines (useful if script has blank lines between segments)
-    # Using a non-greedy match for the text (.*?) to stop at the next speaker or end.
     
     # Pattern looks for "Host:" or "Guest:", captures the name, then captures all text
     # until the next "Host:" or "Guest:" or the end of the string.
     # We'll split by lines first to handle multi-line text for a single speaker.
-    
+    # [ {'speker ': H|G, "text": "script"}, {}, {}]
     current_speaker = None
     current_lines = []
     
@@ -326,14 +294,7 @@ def _parse_script_into_segments(raw_script_text: str) -> list[dict[str, str]]:
         elif current_speaker:
             # This line belongs to the current speaker
             current_lines.append(line)
-        # else:
-            # This line doesn't have a speaker label and no current speaker is set
-            # (e.g., intro text before first speaker label, or improperly formatted lines)
-            # We could choose to ignore it, or assign it to a default speaker, or prepend to next.
-            # For now, if it's before any speaker, it might be part of an initial intro not assigned.
-            # If robust parsing is needed for imperfect LLM output, this part could be more complex.
-            # print(f"DEBUG: Line ignored or needs handling: '{line}'") # For debugging
-
+       
     # Add the last segment if any
     if current_speaker and current_lines:
         segments.append({
@@ -345,9 +306,6 @@ def _parse_script_into_segments(raw_script_text: str) -> list[dict[str, str]]:
     segments = [seg for seg in segments if seg.get("text")]
 
     print(f"Internal: Parsed into {len(segments)} segments.")
-    # For debugging the segments:
-    # for i, seg in enumerate(segments):
-    #    print(f"  Segment {i+1}: Speaker: {seg['speaker']}, Text Length: {len(seg['text'])}")
     return segments
 
 
