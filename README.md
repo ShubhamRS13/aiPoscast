@@ -1,3 +1,5 @@
+# Video link: 
+https://drive.google.com/drive/folders/1mdykHQp7CZYGfhJ19SUJqPZ1D-QTDy2E
 # 🎙️ AI Podcast Generator: Project Documentation 🎙️
 
 Version: 1.0.0
